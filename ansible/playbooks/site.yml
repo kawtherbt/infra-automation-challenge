@@ -11,7 +11,7 @@
         cache_valid_time: 3600
 
   roles:
-    - bootstrap_user
+    - server_setup
     - ssh_hardening
     - docker
     - fail2ban
