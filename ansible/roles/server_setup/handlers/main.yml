@@ -1,0 +1,17 @@
+---
+- name: restart ssh
+  service:
+    name: sshd
+    state: restarted
+  # On some Ubuntu installs service name is 'ssh' not 'sshd' - adjust if needed.
+
+- name: restart docker
+  service:
+    name: docker
+    state: restarted
+
+- name: restart fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+

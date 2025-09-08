@@ -1,0 +1,13 @@
+bootstrap_user: kawther
+bootstrap_user_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFQ3e/t0LGJlwqj4OMyENr5N7sa89KyQnuH39SljWSHL kawtherbenticha1@gmail.com"
+sudo_group: sudo
+ssh_port: 22
+disable_root_ssh: true
+
+app_image: "nginx:alpine"
+app_name: "sample-app"
+app_port: 8080
+app_container_port: 80
+
+logrotate_app_conf: /etc/logrotate.d/sample-app
+

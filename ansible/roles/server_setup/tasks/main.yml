@@ -1,0 +1,142 @@
+---
+# main.yml - server_setup
+
+- name: Ensure sudo group exists
+  group:
+    name: "{{ sudo_group }}"
+    state: present
+
+- name: Create dedicated user with home
+  user:
+    name: "{{ bootstrap_user }}"
+    groups: "{{ sudo_group }},docker"
+    append: yes
+    shell: /bin/bash
+    create_home: yes
+    state: present
+
+- name: Ensure .ssh directory exists
+  file:
+    path: "/home/{{ bootstrap_user }}/.ssh"
+    owner: "{{ bootstrap_user }}"
+    group: "{{ bootstrap_user }}"
+    mode: '0700'
+    state: directory
+
+- name: Add public key for user
+  authorized_key:
+    user: "{{ bootstrap_user }}"
+    key: "{{ bootstrap_user_pubkey }}"
+    state: present
+
+### SSH hardening (backup + template)
+- name: Ensure backup of sshd_config exists
+  stat:
+    path: /etc/ssh/sshd_config.orig
+  register: sshd_backup
+
+- name: Backup original sshd_config
+  copy:
+    src: /etc/ssh/sshd_config
+    dest: /etc/ssh/sshd_config.orig
+    remote_src: yes
+  when: not sshd_backup.stat.exists
+
+- name: Deploy hardened sshd_config (template)
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+  notify: restart ssh
+
+### Docker install (official repo)
+- name: Install apt dependencies for Docker
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+    state: present
+    update_cache: yes
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker apt repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+    state: present
+
+- name: Install docker packages
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: latest
+    update_cache: yes
+
+- name: Ensure docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Ensure bootstrap user is in docker group
+  user:
+    name: "{{ bootstrap_user }}"
+    groups: docker
+    append: yes
+
+- name: Deploy docker daemon.json (log opts)
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart docker
+
+### fail2ban
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: yes
+
+- name: Deploy basic fail2ban ssh jail
+  copy:
+    dest: /etc/fail2ban/jail.d/ssh_local.conf
+    content: |
+      [sshd]
+      enabled = true
+      port = {{ ssh_port }}
+      maxretry = 5
+  notify: restart fail2ban
+
+- name: Ensure fail2ban running
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+### App deployment (docker)
+- name: Pull app image
+  community.docker.docker_image:
+    name: "{{ app_image.split(':')[0] }}"
+    tag: "{{ (app_image.split(':')[1] | default('latest')) }}"
+
+- name: Run app container
+  community.docker.docker_container:
+    name: "{{ app_name }}"
+    image: "{{ app_image }}"
+    state: started
+    restart_policy: unless-stopped
+    published_ports:
+      - "{{ app_port }}:{{ app_container_port }}"

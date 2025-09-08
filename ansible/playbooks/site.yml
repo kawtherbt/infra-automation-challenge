@@ -1,0 +1,18 @@
+---
+- hosts: all
+  become: yes
+  vars_files:
+    - ../vars/defaults.yml
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - bootstrap_user
+    - ssh_hardening
+    - docker
+    - fail2ban
+    - app_deploy
