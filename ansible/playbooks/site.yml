@@ -12,7 +12,3 @@
 
   roles:
     - server_setup
-    - ssh_hardening
-    - docker
-    - fail2ban
-    - app_deploy

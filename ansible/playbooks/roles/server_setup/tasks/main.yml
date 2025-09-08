@@ -6,6 +6,12 @@
     name: "{{ sudo_group }}"
     state: present
 
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+
+
 - name: Create dedicated user with home
   user:
     name: "{{ bootstrap_user }}"
@@ -131,6 +137,7 @@
   community.docker.docker_image:
     name: "{{ app_image.split(':')[0] }}"
     tag: "{{ (app_image.split(':')[1] | default('latest')) }}"
+    source: pull
 
 - name: Run app container
   community.docker.docker_container:
